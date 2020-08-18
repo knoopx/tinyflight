@@ -68,6 +68,7 @@
 #include "drivers/serial.h"
 #include "drivers/serial_softserial.h"
 #include "drivers/serial_uart.h"
+#include "drivers/serial_usb_vcp.h"
 #include "drivers/sdcard.h"
 #include "drivers/sdio.h"
 #include "drivers/sound_beeper.h"
@@ -545,6 +546,20 @@ void init(void)
 #endif
 
 #ifdef USE_OVERCLOCK
+#if defined(STM32F3) && defined(USE_VCP)
+    if (systemConfig()->cpu_overclock > OVERCLOCK_128MHZ) {
+        usbVcpOpen();
+        uint32_t us = micros();
+        bool usbConnected = false;
+        while(cmpTimeUs(micros(), us) < 1500000 && !usbConnected) {
+            usbConnected = usbVcpIsConnected() != 0;
+        }
+
+        if (!usbConnected) {
+            OverclockRebootIfNecessary(systemConfig()->cpu_overclock);
+        }
+    } else
+#endif
     OverclockRebootIfNecessary(systemConfig()->cpu_overclock);
 #endif
 

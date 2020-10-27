@@ -43,6 +43,7 @@ void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
 {
     for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++) {
         RESET_CONFIG(controlRateConfig_t, &controlRateConfig[i],
+            .rateDynamics = { 100, 100, 10, 10, 0, 0 },
             .thrMid8 = 50,
             .thrExpo8 = 0,
             .dynThrPID = 65,

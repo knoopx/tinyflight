@@ -1302,6 +1302,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         // added in 1.43
         sbufWriteU8(dst, currentControlRateProfile->rates_type);
 
+        sbufWriteU8(dst, currentControlRateProfile->rateDynamics.rateSensCenter);
+        sbufWriteU8(dst, currentControlRateProfile->rateDynamics.rateSensEnd);
+        sbufWriteU8(dst, currentControlRateProfile->rateDynamics.rateCorrectionCenter);
+        sbufWriteU8(dst, currentControlRateProfile->rateDynamics.rateCorrectionEnd);
+        sbufWriteU8(dst, currentControlRateProfile->rateDynamics.rateWeightCenter);
+        sbufWriteU8(dst, currentControlRateProfile->rateDynamics.rateWeightEnd);
+
         break;
 
     case MSP_PID:
@@ -2391,6 +2398,15 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             // version 1.43
             if (sbufBytesRemaining(src) >= 1) {
                 currentControlRateProfile->rates_type = sbufReadU8(src);
+            }
+
+            if (sbufBytesRemaining(src) >= 6) {
+                currentControlRateProfile->rateDynamics.rateSensCenter = sbufReadU8(src);
+                currentControlRateProfile->rateDynamics.rateSensEnd = sbufReadU8(src);
+                currentControlRateProfile->rateDynamics.rateCorrectionCenter = sbufReadU8(src);
+                currentControlRateProfile->rateDynamics.rateCorrectionEnd = sbufReadU8(src);
+                currentControlRateProfile->rateDynamics.rateWeightCenter = sbufReadU8(src);
+                currentControlRateProfile->rateDynamics.rateWeightEnd = sbufReadU8(src);
             }
 
             initRcProcessing();

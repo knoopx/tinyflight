@@ -56,3 +56,4 @@ float applyCurve(int axis, float deflection);
 bool getShouldUpdateFf();
 void updateRcRefreshRate(timeUs_t currentTimeUs);
 uint16_t getCurrentRxRefreshRate(void);
+float applyRateDynamics(float rcCommand, int axis, int currentRxRefreshRate);

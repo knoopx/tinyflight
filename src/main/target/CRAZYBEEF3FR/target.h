@@ -40,7 +40,7 @@
 #undef USE_TELEMETRY_GHST
 #undef USE_TELEMETRY_MAVLINK
 #undef USE_PWM
-
+#undef USE_DSHOT_DMAR
 
 #if defined(CRAZYBEEF3FS)
 #undef USE_SERIALRX_SBUS
@@ -60,8 +60,6 @@
 #undef USE_SERIALRX_IBUS
 #undef USE_TELEMETRY_SRXL
 #endif
-
-#define ENABLE_DSHOT_DMAR       DSHOT_DMAR_OFF
 
 #define LED0_PIN                PB3
 #define USE_BEEPER 
@@ -91,9 +89,7 @@
 #define UART3_RX_PIN            PB11
 #else
 #define USE_UART3
-#define SERIAL_PORT_COUNT       4
-#define USE_SOFTSERIAL1
-#define USE_SOFTSERIAL2
+#define SERIAL_PORT_COUNT       2
 #define UART3_TX_PIN            PB10
 #define UART3_RX_PIN            PB11
 #endif
@@ -123,13 +119,11 @@
 #define RX_SPI_EXTI_PIN         PA8
 #define RX_SPI_BIND_PIN         PA9
 #define RX_SPI_LED_PIN          PA10
-#define DEFAULT_FEATURES        (FEATURE_TELEMETRY | FEATURE_OSD | FEATURE_MOTOR_STOP)
 #elif defined(CRAZYBEEF3DX)
 #define DEFAULT_RX_FEATURE      FEATURE_RX_SERIAL
 #define SERIALRX_PROVIDER       SERIALRX_SPEKTRUM2048
 #define SERIALRX_UART           SERIAL_PORT_USART3
 #define RX_CHANNELS_TAER
-#define DEFAULT_FEATURES        (FEATURE_OSD | FEATURE_MOTOR_STOP)
 #else
 #define USE_RX_SPI
 #define USE_RX_FRSKY_SPI_D
@@ -145,8 +139,9 @@
 #define RX_SPI_EXTI_PIN         PA8
 #define RX_SPI_LED_PIN          PA10
 #define RX_SPI_BIND_PIN         PA9
-#define DEFAULT_FEATURES        (FEATURE_TELEMETRY | FEATURE_OSD | FEATURE_MOTOR_STOP)
 #endif
+
+#define DEFAULT_FEATURES (FEATURE_OSD | FEATURE_SOFTSERIAL)
 
 #define USE_MAX7456
 #define MAX7456_SPI_INSTANCE    SPI1

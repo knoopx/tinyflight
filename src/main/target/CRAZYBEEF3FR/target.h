@@ -91,7 +91,9 @@
 #define UART3_RX_PIN            PB11
 #else
 #define USE_UART3
-#define SERIAL_PORT_COUNT       2
+#define SERIAL_PORT_COUNT       4
+#define USE_SOFTSERIAL1
+#define USE_SOFTSERIAL2
 #define UART3_TX_PIN            PB10
 #define UART3_RX_PIN            PB11
 #endif

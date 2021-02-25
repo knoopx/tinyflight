@@ -1422,7 +1422,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, (uint16_t)constrain(gpsSol.llh.altCm / 100, 0, UINT16_MAX)); // alt changed from 1m to 0.01m per lsb since MSP API 1.39 by RTH. To maintain backwards compatibility compensate to 1m per lsb in MSP again.
         sbufWriteU16(dst, gpsSol.groundSpeed);
         sbufWriteU16(dst, gpsSol.groundCourse);
-        // Added in API version 1.44    
+        // Added in API version 1.44
         sbufWriteU16(dst, gpsSol.hdop);
         break;
 
@@ -1814,7 +1814,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, 0); // was pidProfile.yaw_p_limit
         sbufWriteU8(dst, 0); // reserved
         sbufWriteU8(dst, 0); // was vbatPidCompensation
-        sbufWriteU8(dst, currentPidProfile->feedForwardTransition);
+        sbufWriteU8(dst, 0); // was feedForwardTransition
         sbufWriteU8(dst, 0); // was low byte of currentPidProfile->dtermSetpointWeight
         sbufWriteU8(dst, 0); // reserved
         sbufWriteU8(dst, 0); // reserved
@@ -1850,9 +1850,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #else
         sbufWriteU8(dst, 0);
 #endif
-        sbufWriteU16(dst, currentPidProfile->pid[PID_ROLL].F);
-        sbufWriteU16(dst, currentPidProfile->pid[PID_PITCH].F);
-        sbufWriteU16(dst, currentPidProfile->pid[PID_YAW].F);
+        sbufWriteU16(dst, 0);
+        sbufWriteU16(dst, 0);
+        sbufWriteU16(dst, 0);
 
         sbufWriteU8(dst, currentPidProfile->antiGravityMode);
 #if defined(USE_D_MIN)
@@ -1890,14 +1890,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 0);
 #endif
         // Added in MSP API 1.44
-#if defined(USE_INTERPOLATED_SP)
-        sbufWriteU8(dst, currentPidProfile->ff_interpolate_sp);
-        sbufWriteU8(dst, currentPidProfile->ff_smooth_factor);
-#else
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
-#endif
-        sbufWriteU8(dst, currentPidProfile->ff_boost);
+        sbufWriteU8(dst, 0);
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
         sbufWriteU8(dst, currentPidProfile->vbat_sag_compensation);
 #else
@@ -2140,7 +2135,6 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
 #ifdef USE_D_MIN
             sbufWriteU8(dst, currentPidProfile->simplified_dmin_ratio);
 #endif
-            sbufWriteU8(dst, currentPidProfile->simplified_ff_gain);
 
             sbufWriteU8(dst, currentPidProfile->simplified_dterm_filter);
             sbufWriteU8(dst, currentPidProfile->simplified_dterm_filter_multiplier);
@@ -2701,7 +2695,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         sbufReadU16(src); // was pidProfile.yaw_p_limit
         sbufReadU8(src); // reserved
         sbufReadU8(src); // was vbatPidCompensation
-        currentPidProfile->feedForwardTransition = sbufReadU8(src);
+        sbufReadU8(src); // was feedForwardTransition
         sbufReadU8(src); // was low byte of currentPidProfile->dtermSetpointWeight
         sbufReadU8(src); // reserved
         sbufReadU8(src); // reserved
@@ -2745,11 +2739,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #else
             sbufReadU8(src);
 #endif
-            // PID controller feedforward terms
-            currentPidProfile->pid[PID_ROLL].F = sbufReadU16(src);
-            currentPidProfile->pid[PID_PITCH].F = sbufReadU16(src);
-            currentPidProfile->pid[PID_YAW].F = sbufReadU16(src);
 
+            sbufReadU16(src);
+            sbufReadU16(src);
+            sbufReadU16(src);
             currentPidProfile->antiGravityMode = sbufReadU8(src);
         }
         if (sbufBytesRemaining(src) >= 7) {
@@ -2795,14 +2788,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         if (sbufBytesRemaining(src) >= 5) {
             // Added in MSP API 1.44
-#if defined(USE_INTERPOLATED_SP)
-            currentPidProfile->ff_interpolate_sp = sbufReadU8(src);
-            currentPidProfile->ff_smooth_factor = sbufReadU8(src);
-#else
             sbufReadU8(src);
             sbufReadU8(src);
-#endif
-            currentPidProfile->ff_boost = sbufReadU8(src);
+            sbufReadU8(src); // ff_boost
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
             currentPidProfile->vbat_sag_compensation = sbufReadU8(src);
 #else
@@ -3115,7 +3103,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #ifdef USE_D_MIN
         currentPidProfile->simplified_dmin_ratio = sbufReadU8(src);
 #endif
-        currentPidProfile->simplified_ff_gain = sbufReadU8(src);
 
         currentPidProfile->simplified_dterm_filter = sbufReadU8(src);
         currentPidProfile->simplified_dterm_filter_multiplier = sbufReadU8(src);

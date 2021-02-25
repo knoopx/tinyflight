@@ -43,7 +43,6 @@ static void calculateNewPidValues(pidProfile_t *pidProfile)
 #endif
 
     const float masterMultiplier = pidProfile->simplified_master_multiplier / 100.0f;
-    const float ffGain = pidProfile->simplified_ff_gain / 100.0f;
     const float pdGain = pidProfile->simplified_pd_gain / 100.0f;
     const float iGain = pidProfile->simplified_i_gain / 100.0f;
     const float pdRatio = pidProfile->simplified_pd_ratio / 100.0f;
@@ -63,7 +62,6 @@ static void calculateNewPidValues(pidProfile_t *pidProfile)
             pidProfile->d_min[axis] = constrain(dMinDefaults[axis] * masterMultiplier * pdGain * rpRatio * dminRatio, 0, D_MIN_GAIN_MAX);
         }
 #endif
-        pidProfile->pid[axis].F = constrain(pidDefaults[axis].F * masterMultiplier * ffGain * rpRatio, 0, F_GAIN_MAX);
     }
 }
 

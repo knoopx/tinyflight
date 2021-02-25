@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "pid.h"
+
 void pidInit(const pidProfile_t *pidProfile);
 void pidInitFilters(const pidProfile_t *pidProfile);
 void pidInitConfig(const pidProfile_t *pidProfile);

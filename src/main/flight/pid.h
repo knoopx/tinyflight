@@ -45,10 +45,6 @@
 #define ITERM_SCALE 0.244381f
 #define DTERM_SCALE 0.000529f
 
-// The constant scale factor to replace the Kd component of the feedforward calculation.
-// This value gives the same "feel" as the previous Kd default of 26 (26 * DTERM_SCALE)
-#define FEEDFORWARD_SCALE 0.013754f
-
 // Full iterm suppression in setpoint mode at high-passed setpoint rate > 40deg/sec
 #define ITERM_RELAX_SETPOINT_THRESHOLD 40.0f
 #define ITERM_RELAX_CUTOFF_DEFAULT 15
@@ -58,9 +54,9 @@
 
 #define ITERM_ACCELERATOR_GAIN_OFF 0
 #define ITERM_ACCELERATOR_GAIN_MAX 30000
-#define PID_ROLL_DEFAULT  { 42, 85, 35, 90 }
-#define PID_PITCH_DEFAULT { 46, 90, 38, 95 }
-#define PID_YAW_DEFAULT   { 45, 90,  0, 90 }
+#define PID_ROLL_DEFAULT  { 42, 85, 35 }
+#define PID_PITCH_DEFAULT { 46, 90, 38 }
+#define PID_YAW_DEFAULT   { 45, 90,  0 }
 #define D_MIN_DEFAULT     { 23, 25, 0 }
 
 #define DYN_LPF_DTERM_MIN_HZ_DEFAULT 70
@@ -98,7 +94,6 @@ typedef struct pidf_s {
     uint8_t P;
     uint8_t I;
     uint8_t D;
-    uint16_t F;
 } pidf_t;
 
 typedef enum {
@@ -120,14 +115,6 @@ typedef enum {
     ITERM_RELAX_SETPOINT,
     ITERM_RELAX_TYPE_COUNT,
 } itermRelaxType_e;
-
-typedef enum ffInterpolationType_e {
-    FF_INTERPOLATE_OFF,
-    FF_INTERPOLATE_ON,
-    FF_INTERPOLATE_AVG2,
-    FF_INTERPOLATE_AVG3,
-    FF_INTERPOLATE_AVG4
-} ffInterpolationType_t;
 
 #define MAX_PROFILE_NAME_LENGTH 8u
 
@@ -162,7 +149,6 @@ typedef struct pidProfile_s {
     uint16_t crash_delay;                   // ms
     uint8_t crash_recovery_angle;           // degrees
     uint8_t crash_recovery_rate;            // degree/second
-    uint8_t feedForwardTransition;          // Feed forward weight transition
     uint16_t crash_limit_yaw;               // limits yaw errorRate, so crashes don't cause huge throttle increase
     uint16_t itermLimit;
     uint16_t dterm_lowpass2_hz;             // Extra PT1 Filter on D in hz
@@ -198,7 +184,6 @@ typedef struct pidProfile_s {
     uint8_t motor_output_limit;             // Upper limit of the motor output (percent)
     int8_t auto_profile_cell_count;         // Cell count for this profile to be used with if auto PID profile switching is used
     uint8_t transient_throttle_limit;       // Maximum DC component of throttle change to mix into throttle to prevent airmode mirroring noise
-    uint8_t ff_boost;                       // amount of high-pass filtered FF to add to FF, 100 means 100% added
     char profileName[MAX_PROFILE_NAME_LENGTH + 1]; // Descriptive name for profile
 
     uint8_t dyn_idle_min_rpm;                   // minimum motor speed enforced by the dynamic idle controller
@@ -207,9 +192,6 @@ typedef struct pidProfile_s {
     uint8_t dyn_idle_d_gain;                // D gain for corrections around rapid changes in rpm
     uint8_t dyn_idle_max_increase;          // limit on maximum possible increase in motor idle drive during active control
 
-    uint8_t ff_interpolate_sp;              // Calculate FF from interpolated setpoint
-    uint8_t ff_max_rate_limit;              // Maximum setpoint rate percentage for FF
-    uint8_t ff_smooth_factor;               // Amount of smoothing for interpolated FF steps
     uint8_t dyn_lpf_curve_expo;             // set the curve for dynamic dterm lowpass filter
     uint8_t level_race_mode;                // NFE race mode - when true pitch setpoint calcualtion is gyro based in level mode
     uint8_t vbat_sag_compensation;          // Reduce motor output by this percentage of the maximum compensation amount
@@ -221,7 +203,6 @@ typedef struct pidProfile_s {
     uint8_t simplified_pd_ratio;
     uint8_t simplified_pd_gain;
     uint8_t simplified_dmin_ratio;
-    uint8_t simplified_ff_gain;
 
     uint8_t simplified_dterm_filter;
     uint8_t simplified_dterm_filter_multiplier;
@@ -245,7 +226,6 @@ typedef struct pidAxisData_s {
     float P;
     float I;
     float D;
-    float F;
 
     float Sum;
 } pidAxisData_t;
@@ -259,7 +239,6 @@ typedef struct pidCoefficient_s {
     float Kp;
     float Ki;
     float Kd;
-    float Kf;
 } pidCoefficient_t;
 
 typedef struct pidRuntime_s {
@@ -282,10 +261,8 @@ typedef struct pidRuntime_s {
     float antiGravityOsdCutoff;
     float antiGravityThrottleHpf;
     float antiGravityPBoost;
-    float ffBoostFactor;
     float itermAccelerator;
     uint16_t itermAcceleratorGain;
-    float feedForwardTransition;
     pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
     float levelGain;
     float horizonGain;
@@ -383,10 +360,6 @@ typedef struct pidRuntime_s {
     float airmodeThrottleOffsetLimit;
 #endif
 
-#ifdef USE_INTERPOLATED_SP
-    ffInterpolationType_t ffFromInterpolatedSetpoint;
-    float ffSmoothFactor;
-#endif
 } pidRuntime_t;
 
 extern pidRuntime_t pidRuntime;
@@ -438,6 +411,4 @@ void pidSetItermReset(bool enabled);
 float pidGetPreviousSetpoint(int axis);
 float pidGetDT();
 float pidGetPidFrequency();
-float pidGetFfBoostFactor();
-float pidGetFfSmoothFactor();
 float dynLpfCutoffFreq(float throttle, uint16_t dynLpfMin, uint16_t dynLpfMax, uint8_t expo);

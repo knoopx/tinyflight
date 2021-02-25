@@ -48,7 +48,6 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/rpm_filter.h"
-#include "flight/interpolated_setpoint.h"
 
 #include "io/gps.h"
 
@@ -130,8 +129,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_ROLL] =  PID_ROLL_DEFAULT,
             [PID_PITCH] = PID_PITCH_DEFAULT,
             [PID_YAW] =   PID_YAW_DEFAULT,
-            [PID_LEVEL] = { 50, 50, 75, 0 },
-            [PID_MAG] =   { 40, 0, 0, 0 },
+            [PID_LEVEL] = { 50, 50, 75 },
+            [PID_MAG] =   { 40, 0, 0 },
         },
         .pidSumLimit = PIDSUM_LIMIT,
         .pidSumLimitYaw = PIDSUM_LIMIT_YAW,
@@ -141,7 +140,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .itermWindupPointPercent = 100,
         .pidAtMinThrottle = PID_STABILISATION_ON,
         .levelAngleLimit = 55,
-        .feedForwardTransition = 0,
         .yawRateAccelLimit = 0,
         .rateAccelLimit = 0,
         .itermThrottleThreshold = 250,
@@ -202,11 +200,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dyn_idle_i_gain = 50,
         .dyn_idle_d_gain = 50,
         .dyn_idle_max_increase = 150,
-        .ff_interpolate_sp = FF_INTERPOLATE_ON,
-        .ff_max_rate_limit = 100,
-        .ff_smooth_factor = 37,
-        .ff_jitter_factor = 7,
-        .ff_boost = 15,
         .dyn_lpf_curve_expo = 5,
         .level_race_mode = false,
         .vbat_sag_compensation = 0,
@@ -217,7 +210,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .simplified_pd_ratio = SIMPLIFIED_TUNING_DEFAULT,
         .simplified_pd_gain = SIMPLIFIED_TUNING_DEFAULT,
         .simplified_dmin_ratio = SIMPLIFIED_TUNING_DEFAULT,
-        .simplified_ff_gain = SIMPLIFIED_TUNING_DEFAULT,
         .simplified_dterm_filter = false,
         .simplified_dterm_filter_multiplier = SIMPLIFIED_TUNING_DEFAULT,
     );
@@ -255,23 +247,6 @@ void pidStabilisationState(pidStabilisationState_e pidControllerState)
 }
 
 const angle_index_t rcAliasToAngleIndexMap[] = { AI_ROLL, AI_PITCH };
-
-float pidGetFfBoostFactor()
-{
-    return pidRuntime.ffBoostFactor;
-}
-
-#ifdef USE_INTERPOLATED_SP
-float pidGetFfSmoothFactor()
-{
-    return pidRuntime.ffSmoothFactor;
-}
-
-float pidGetFfJitterFactor()
-{
-    return pidRuntime.ffJitterFactor;
-}
-#endif
 
 void pidResetIterm(void)
 {
@@ -912,13 +887,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     rpmFilterUpdate();
 #endif
 
-#ifdef USE_INTERPOLATED_SP
-    bool newRcFrame = false;
-    if (getShouldUpdateFf()) {
-        newRcFrame = true;
-    }
-#endif
-
     // ----------PID controller----------
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
 
@@ -1023,19 +991,12 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
         pidData[axis].I = constrainf(previousIterm + (Ki * axisDynCi + agGain) * itermErrorRate, -pidRuntime.itermLimit, pidRuntime.itermLimit);
 
+#if defined(USE_RC_SMOOTHING_FILTER) || defined(USE_D_MIN) || defined(USE_ABSOLUTE_CONTROL)
         // -----calculate pidSetpointDelta
         float pidSetpointDelta = 0;
-#ifdef USE_INTERPOLATED_SP
-        if (pidRuntime.ffFromInterpolatedSetpoint) {
-            pidSetpointDelta = interpolatedSpApply(axis, newRcFrame, pidRuntime.ffFromInterpolatedSetpoint);
-        } else {
-            pidSetpointDelta = currentPidSetpoint - pidRuntime.previousPidSetpoint[axis];
-        }
-#else
         pidSetpointDelta = currentPidSetpoint - pidRuntime.previousPidSetpoint[axis];
-#endif
         pidRuntime.previousPidSetpoint[axis] = currentPidSetpoint;
-
+#endif
 
 #ifdef USE_RC_SMOOTHING_FILTER
         pidSetpointDelta = applyRcSmoothingDerivativeFilter(axis, pidSetpointDelta);
@@ -1111,23 +1072,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidRuntime.oldSetpointCorrection[axis] = setpointCorrection;
 #endif
 
-        // Only enable feedforward for rate mode and if launch control is inactive
-        const float feedforwardGain = (flightModeFlags || launchControlActive) ? 0.0f : pidRuntime.pidCoefficient[axis].Kf;
-        if (feedforwardGain > 0) {
-            // no transition if feedForwardTransition == 0
-            float transition = pidRuntime.feedForwardTransition > 0 ? MIN(1.f, getRcDeflectionAbs(axis) * pidRuntime.feedForwardTransition) : 1;
-            float feedForward = feedforwardGain * transition * pidSetpointDelta * pidRuntime.pidFrequency;
-
-#ifdef USE_INTERPOLATED_SP
-            pidData[axis].F = shouldApplyFfLimits(axis) ?
-                applyFfLimit(axis, feedForward, pidRuntime.pidCoefficient[axis].Kp, currentPidSetpoint) : feedForward;
-#else
-            pidData[axis].F = feedForward;
-#endif
-        } else {
-            pidData[axis].F = 0;
-        }
-
 #ifdef USE_YAW_SPIN_RECOVERY
         if (yawSpinActive) {
             pidData[axis].I = 0;  // in yaw spin always disable I
@@ -1135,7 +1079,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
                 // zero PIDs on pitch and roll leaving yaw P to correct spin
                 pidData[axis].P = 0;
                 pidData[axis].D = 0;
-                pidData[axis].F = 0;
             }
         }
 #endif // USE_YAW_SPIN_RECOVERY
@@ -1170,7 +1113,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             DEBUG_SET(DEBUG_ANTI_GRAVITY, axis + 2, lrintf(agBoost * 1000));
         }
 
-        const float pidSum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
+        const float pidSum = pidData[axis].P + pidData[axis].I + pidData[axis].D;
 #ifdef USE_INTEGRATED_YAW_CONTROL
         if (axis == FD_YAW && pidRuntime.useIntegratedYaw) {
             pidData[axis].Sum += pidSum * pidRuntime.dT * 100.0f;
@@ -1189,7 +1132,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             pidData[axis].P = 0;
             pidData[axis].I = 0;
             pidData[axis].D = 0;
-            pidData[axis].F = 0;
 
             pidData[axis].Sum = 0;
         }

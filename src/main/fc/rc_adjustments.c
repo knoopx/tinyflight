@@ -189,14 +189,6 @@ static const adjustmentConfig_t defaultAdjustmentConfigs[ADJUSTMENT_FUNCTION_COU
         .mode = ADJUSTMENT_MODE_STEP,
         .data = { .step = 1 }
     }, {
-        .adjustmentFunction = ADJUSTMENT_PITCH_ROLL_F,
-        .mode = ADJUSTMENT_MODE_STEP,
-        .data = { .step = 1 }
-    }, {
-        .adjustmentFunction = ADJUSTMENT_FEEDFORWARD_TRANSITION,
-        .mode = ADJUSTMENT_MODE_STEP,
-        .data = { .step = 1 }
-    }, {
         .adjustmentFunction = ADJUSTMENT_HORIZON_STRENGTH,
         .mode = ADJUSTMENT_MODE_SELECT,
         .data = { .switchPositions = 255 }
@@ -204,18 +196,6 @@ static const adjustmentConfig_t defaultAdjustmentConfigs[ADJUSTMENT_FUNCTION_COU
         .adjustmentFunction = ADJUSTMENT_PID_AUDIO,
         .mode = ADJUSTMENT_MODE_SELECT,
         .data = { .switchPositions = ARRAYLEN(pidAudioPositionToModeMap) }
-    }, {
-        .adjustmentFunction = ADJUSTMENT_PITCH_F,
-        .mode = ADJUSTMENT_MODE_STEP,
-        .data = { .step = 1 }
-    }, {
-        .adjustmentFunction = ADJUSTMENT_ROLL_F,
-        .mode = ADJUSTMENT_MODE_STEP,
-        .data = { .step = 1 }
-    }, {
-        .adjustmentFunction = ADJUSTMENT_YAW_F,
-        .mode = ADJUSTMENT_MODE_STEP,
-        .data = { .step = 1 }
     }, {
         .adjustmentFunction = ADJUSTMENT_OSD_PROFILE,
         .mode = ADJUSTMENT_MODE_SELECT,
@@ -395,32 +375,6 @@ static int applyStepAdjustment(controlRateConfig_t *controlRateConfig, uint8_t a
         controlRateConfig->rcRates[FD_YAW] = newValue;
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_RC_RATE_YAW, newValue);
         break;
-    case ADJUSTMENT_PITCH_ROLL_F:
-    case ADJUSTMENT_PITCH_F:
-        newValue = constrain(currentPidProfile->pid[PID_PITCH].F + delta, 0, 2000);
-        currentPidProfile->pid[PID_PITCH].F = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_PITCH_F, newValue);
-
-        if (adjustmentFunction == ADJUSTMENT_PITCH_F) {
-            break;
-        }
-        // fall through for combined ADJUSTMENT_PITCH_ROLL_F
-        FALLTHROUGH;
-    case ADJUSTMENT_ROLL_F:
-        newValue = constrain(currentPidProfile->pid[PID_ROLL].F + delta, 0, 2000);
-        currentPidProfile->pid[PID_ROLL].F = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_ROLL_F, newValue);
-        break;
-    case ADJUSTMENT_YAW_F:
-        newValue = constrain(currentPidProfile->pid[PID_YAW].F + delta, 0, 2000);
-        currentPidProfile->pid[PID_YAW].F = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_YAW_F, newValue);
-        break;
-    case ADJUSTMENT_FEEDFORWARD_TRANSITION:
-        newValue = constrain(currentPidProfile->feedForwardTransition + delta, 1, 100); // FIXME magic numbers repeated in cli.c
-        currentPidProfile->feedForwardTransition = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_FEEDFORWARD_TRANSITION, newValue);
-        break;
     default:
         newValue = -1;
         break;
@@ -555,32 +509,6 @@ static int applyAbsoluteAdjustment(controlRateConfig_t *controlRateConfig, adjus
         newValue = constrain(value, 1, CONTROL_RATE_CONFIG_RC_RATES_MAX);
         controlRateConfig->rcRates[FD_YAW] = newValue;
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_RC_RATE_YAW, newValue);
-        break;
-    case ADJUSTMENT_PITCH_ROLL_F:
-    case ADJUSTMENT_PITCH_F:
-        newValue = constrain(value, 0, 2000);
-        currentPidProfile->pid[PID_PITCH].F = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_PITCH_F, newValue);
-
-        if (adjustmentFunction == ADJUSTMENT_PITCH_F) {
-            break;
-        }
-        // fall through for combined ADJUSTMENT_PITCH_ROLL_F
-        FALLTHROUGH;
-    case ADJUSTMENT_ROLL_F:
-        newValue = constrain(value, 0, 2000);
-        currentPidProfile->pid[PID_ROLL].F = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_ROLL_F, newValue);
-        break;
-    case ADJUSTMENT_YAW_F:
-        newValue = constrain(value, 0, 2000);
-        currentPidProfile->pid[PID_YAW].F = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_YAW_F, newValue);
-        break;
-    case ADJUSTMENT_FEEDFORWARD_TRANSITION:
-        newValue = constrain(value, 1, 100); // FIXME magic numbers repeated in cli.c
-        currentPidProfile->feedForwardTransition = newValue;
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_FEEDFORWARD_TRANSITION, newValue);
         break;
     default:
         newValue = -1;

@@ -88,12 +88,6 @@ extern "C" {
     void beeperConfirmationBeeps(uint8_t) { }
     bool isLaunchControlActive(void) {return unitLaunchControlActive; }
     void disarm(flightLogDisarmReason_e) { }
-    float applyFFLimit(int axis, float value, float Kp, float currentPidSetpoint) {
-        UNUSED(axis);
-        UNUSED(Kp);
-        UNUSED(currentPidSetpoint);
-        return value;
-    }
     void initRcProcessing(void) { }
 }
 
@@ -105,10 +99,10 @@ int loopIter = 0;
 void setDefaultTestSettings(void) {
     pgResetAll();
     pidProfile = pidProfilesMutable(1);
-    pidProfile->pid[PID_ROLL]  =  { 40, 40, 30, 65 };
-    pidProfile->pid[PID_PITCH] =  { 58, 50, 35, 60 };
-    pidProfile->pid[PID_YAW]   =  { 70, 45, 20, 60 };
-    pidProfile->pid[PID_LEVEL] =  { 50, 50, 75, 0 };
+    pidProfile->pid[PID_ROLL]  =  { 40, 40, 30 };
+    pidProfile->pid[PID_PITCH] =  { 58, 50, 35 };
+    pidProfile->pid[PID_YAW]   =  { 70, 45, 20 };
+    pidProfile->pid[PID_LEVEL] =  { 50, 50, 75 };
 
     // Compensate for the upscaling done without 'use_integrated_yaw'
     pidProfile->pid[PID_YAW].I = pidProfile->pid[PID_YAW].I / 2.5f;
@@ -124,7 +118,6 @@ void setDefaultTestSettings(void) {
     pidProfile->itermWindupPointPercent = 50;
     pidProfile->pidAtMinThrottle = PID_STABILISATION_ON;
     pidProfile->levelAngleLimit = 55;
-    pidProfile->feedForwardTransition = 100;
     pidProfile->yawRateAccelLimit = 100;
     pidProfile->rateAccelLimit = 0;
     pidProfile->antiGravityMode = ANTI_GRAVITY_SMOOTH;
@@ -173,7 +166,6 @@ void resetTest(void) {
         pidData[axis].P = 0;
         pidData[axis].I = 0;
         pidData[axis].D = 0;
-        pidData[axis].F = 0;
         pidData[axis].Sum = 0;
         simulatedSetpointRate[axis] = 0;
         simulatedRcDeflection[axis] = 0;
@@ -501,48 +493,6 @@ TEST(pidControllerTest, testCrashRecoveryMode) {
     // Add additional verifications
 }
 
-TEST(pidControllerTest, testFeedForward) {
-    resetTest();
-    ENABLE_ARMING_FLAG(ARMED);
-    pidStabilisationState(PID_STABILISATION_ON);
-
-    EXPECT_FLOAT_EQ(0, pidData[FD_ROLL].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_PITCH].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_YAW].F);
-
-    // Match the stick to gyro to stop error
-    setStickPosition(FD_ROLL, 1.0f);
-    setStickPosition(FD_PITCH, -1.0f);
-    setStickPosition(FD_YAW, -1.0f);
-
-    pidController(pidProfile, currentTestTime());
-
-    EXPECT_NEAR(2232.78, pidData[FD_ROLL].F, calculateTolerance(2232.78));
-    EXPECT_NEAR(-2061.03, pidData[FD_PITCH].F, calculateTolerance(-2061.03));
-    EXPECT_NEAR(-82.52, pidData[FD_YAW].F, calculateTolerance(-82.5));
-
-    // Match the stick to gyro to stop error
-    setStickPosition(FD_ROLL, 0.5f);
-    setStickPosition(FD_PITCH, -0.5f);
-    setStickPosition(FD_YAW, -0.5f);
-
-    pidController(pidProfile, currentTestTime());
-
-    EXPECT_NEAR(-558.20, pidData[FD_ROLL].F, calculateTolerance(-558.20));
-    EXPECT_NEAR(515.26, pidData[FD_PITCH].F, calculateTolerance(515.26));
-    EXPECT_NEAR(-41.26, pidData[FD_YAW].F, calculateTolerance(-41.26));
-
-    for (int loop =0; loop <= 15; loop++) {
-        gyro.gyroADCf[FD_ROLL] += gyro.gyroADCf[FD_ROLL];
-        pidController(pidProfile, currentTestTime());
-    }
-
-    EXPECT_FLOAT_EQ(0, pidData[FD_ROLL].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_PITCH].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_YAW].F);
-
-}
-
 TEST(pidControllerTest, testItermRelax) {
     resetTest();
     pidProfile->iterm_relax = ITERM_RELAX_RP;
@@ -705,9 +655,6 @@ TEST(pidControllerTest, testLaunchControl) {
     // set initial state
     pidController(pidProfile, currentTestTime());
 
-    EXPECT_FLOAT_EQ(0, pidData[FD_ROLL].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_PITCH].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_YAW].F);
     EXPECT_FLOAT_EQ(0, pidData[FD_ROLL].D);
     EXPECT_FLOAT_EQ(0, pidData[FD_PITCH].D);
     EXPECT_FLOAT_EQ(0, pidData[FD_YAW].D);
@@ -723,11 +670,6 @@ TEST(pidControllerTest, testLaunchControl) {
     gyro.gyroADCf[FD_YAW] = -1000;
 
     pidController(pidProfile, currentTestTime());
-
-    // validate that feedforwad is still 0
-    EXPECT_FLOAT_EQ(0, pidData[FD_ROLL].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_PITCH].F);
-    EXPECT_FLOAT_EQ(0, pidData[FD_YAW].F);
 
     // validate that D is still 0
     EXPECT_FLOAT_EQ(0, pidData[FD_ROLL].D);

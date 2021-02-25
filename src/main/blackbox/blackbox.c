@@ -1061,7 +1061,6 @@ static void loadMainState(timeUs_t currentTimeUs)
         blackboxCurrent->axisPID_P[i] = pidData[i].P;
         blackboxCurrent->axisPID_I[i] = pidData[i].I;
         blackboxCurrent->axisPID_D[i] = pidData[i].D;
-        blackboxCurrent->axisPID_F[i] = pidData[i].F;
         blackboxCurrent->gyroADC[i] = lrintf(gyro.gyroADCf[i]);
 #if defined(USE_ACC)
         blackboxCurrent->accADC[i] = lrintf(acc.accADC[i]);
@@ -1384,16 +1383,6 @@ static bool blackboxWriteSysinfo(void)
 #ifdef USE_INTEGRATED_YAW_CONTROL
         BLACKBOX_PRINT_HEADER_LINE("use_integrated_yaw", "%d",              currentPidProfile->use_integrated_yaw);
 #endif
-        BLACKBOX_PRINT_HEADER_LINE("feedforward_transition", "%d",          currentPidProfile->feedForwardTransition);
-        BLACKBOX_PRINT_HEADER_LINE("feedforward_weight", "%d,%d,%d",        currentPidProfile->pid[PID_ROLL].F,
-                                                                            currentPidProfile->pid[PID_PITCH].F,
-                                                                            currentPidProfile->pid[PID_YAW].F);
-#ifdef USE_INTERPOLATED_SP
-        BLACKBOX_PRINT_HEADER_LINE("ff_interpolate_sp", "%d",               currentPidProfile->ff_interpolate_sp);
-        BLACKBOX_PRINT_HEADER_LINE("ff_max_rate_limit", "%d",               currentPidProfile->ff_max_rate_limit);
-#endif
-        BLACKBOX_PRINT_HEADER_LINE("ff_boost", "%d",                        currentPidProfile->ff_boost);
-
         BLACKBOX_PRINT_HEADER_LINE("acc_limit_yaw", "%d",                   currentPidProfile->yawRateAccelLimit);
         BLACKBOX_PRINT_HEADER_LINE("acc_limit", "%d",                       currentPidProfile->rateAccelLimit);
         BLACKBOX_PRINT_HEADER_LINE("pidsum_limit", "%d",                    currentPidProfile->pidSumLimit);

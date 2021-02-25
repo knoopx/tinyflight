@@ -41,7 +41,6 @@
 
 #include "flight/failsafe.h"
 #include "flight/imu.h"
-#include "flight/interpolated_setpoint.h"
 #include "flight/gps_rescue.h"
 #include "flight/pid_init.h"
 
@@ -56,14 +55,6 @@
 
 
 typedef float (applyRatesFn)(const int axis, float rcCommandf, const float rcCommandfAbs);
-
-#ifdef USE_INTERPOLATED_SP
-// Setpoint in degrees/sec before RC-Smoothing is applied
-static float rawSetpoint[XYZ_AXIS_COUNT];
-static float oldRcCommand[XYZ_AXIS_COUNT];
-static bool isDuplicate[XYZ_AXIS_COUNT];
-float rcCommandDelta[XYZ_AXIS_COUNT];
-#endif
 
 static float setpointRate[3], rcDeflection[3], rcDeflectionAbs[3];
 static float throttlePIDAttenuation;
@@ -98,16 +89,6 @@ enum {
 static FAST_DATA_ZERO_INIT rcSmoothingFilter_t rcSmoothingData;
 #endif // USE_RC_SMOOTHING_FILTER
 
-bool getShouldUpdateFf()
-// only used in pid.c when interpolated_sp is active to initiate a new FF value
-{
-    const bool updateFf = newRxDataForFF;
-    if (newRxDataForFF == true){
-        newRxDataForFF = false;
-    }
-    return updateFf;
-}
-
 float getSetpointRate(int axis)
 // only used in pid.c to provide setpointRate for the crash recovery function
 {
@@ -128,19 +109,6 @@ float getThrottlePIDAttenuation(void)
 {
     return throttlePIDAttenuation;
 }
-
-#ifdef USE_INTERPOLATED_SP
-float getRawSetpoint(int axis)
-{
-    return rawSetpoint[axis];
-}
-
-float getRcCommandDelta(int axis)
-{
-    return rcCommandDelta[axis];
-}
-
-#endif
 
 #define THROTTLE_LOOKUP_LENGTH 12
 static int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];    // lookup table for expo & mid THROTTLE
@@ -263,7 +231,7 @@ static void calculateSetpointRate(int axis)
         } else {
             rcCommandf = rcCommand[axis] / rcCommandDivider;
         }
-        
+
         rcDeflection[axis] = rcCommandf;
         const float rcCommandfAbs = fabsf(rcCommandf);
         rcDeflectionAbs[axis] = rcCommandfAbs;
@@ -447,7 +415,7 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
 
     // update or initialize the derivative filter
     oldCutoff = smoothingData->derivativeCutoffFrequency;
-    if ((currentPidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF) && (rcSmoothingData.derivativeCutoffSetting == 0)) {
+    if (rcSmoothingData.derivativeCutoffSetting == 0) {
         smoothingData->derivativeCutoffFrequency = calcRcSmoothingCutoff(smoothingData->averageFrameTimeUs, smoothingData->autoSmoothnessFactor);
     }
 
@@ -518,7 +486,7 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
 
         rcSmoothingData.inputCutoffFrequency = rcSmoothingData.inputCutoffSetting;
 
-        if ((currentPidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF) && (rcSmoothingData.derivativeCutoffSetting == 0)) {
+        if (rcSmoothingData.derivativeCutoffSetting == 0) {
             // calculate the initial derivative cutoff used for interpolated feedforward until RC interval is known
             const float cutoffFactor = 1.5f / (1.0f + (rcSmoothingData.autoSmoothnessFactor / 10.0f));
             float derivativeCutoff = RC_SMOOTHING_INTERPOLATED_FEEDFORWARD_INITIAL_HZ * cutoffFactor;  // PT1 cutoff frequency
@@ -640,24 +608,6 @@ FAST_CODE void processRcCommand(void)
     if (isRxDataNew && pidAntiGravityEnabled()) {
         checkForThrottleErrorResetState(currentRxRefreshRate);
     }
-
-#ifdef USE_INTERPOLATED_SP
-    if (isRxDataNew) {
-        for (int i = FD_ROLL; i <= FD_YAW; i++) {
-            isDuplicate[i] = (oldRcCommand[i] == rcCommand[i]);
-            rcCommandDelta[i] = fabsf(rcCommand[i] - oldRcCommand[i]);
-            oldRcCommand[i] = rcCommand[i];
-            float rcCommandf;
-            if (i == FD_YAW) {
-                rcCommandf = rcCommand[i] / rcCommandYawDivider;
-            } else {
-                rcCommandf = rcCommand[i] / rcCommandDivider;
-            }
-            const float rcCommandfAbs = fabsf(rcCommandf);
-            rawSetpoint[i] = applyRates(i, rcCommandf, rcCommandfAbs);
-        }
-    }
-#endif
 
     switch (rxConfig()->rc_smoothing_type) {
 #ifdef USE_RC_SMOOTHING_FILTER

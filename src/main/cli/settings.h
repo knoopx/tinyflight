@@ -133,7 +133,6 @@ typedef enum {
     TABLE_GYRO_FILTER_DEBUG,
     TABLE_POSITION_ALT_SOURCE,
     TABLE_OFF_ON_AUTO,
-    TABLE_INTERPOLATED_SP,
     TABLE_DSHOT_BITBANGED_TIMER,
     TABLE_OSD_DISPLAYPORT_DEVICE,
 #ifdef USE_OSD
@@ -259,8 +258,6 @@ extern const char * const lookupTableItermRelax[];
 extern const char * const lookupTableItermRelaxType[];
 
 extern const char * const lookupTableOsdDisplayPortDevice[];
-
-extern const char * const lookupTableInterpolatedSetpoint[];
 
 extern const char * const lookupTableOffOn[];
 

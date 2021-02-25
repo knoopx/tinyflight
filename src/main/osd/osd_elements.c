@@ -424,7 +424,7 @@ void osdFormatDistanceString(char *ptr, int distance, char leadingSymbol)
 
 static void osdFormatPID(char * buff, const char * label, const pidf_t * pid)
 {
-    tfp_sprintf(buff, "%s %3d %3d %3d %3d", label, pid->P, pid->I, pid->D, pid->F);
+    tfp_sprintf(buff, "%s %3d %3d %3d", label, pid->P, pid->I, pid->D);
 }
 
 #ifdef USE_RTC_TIME
